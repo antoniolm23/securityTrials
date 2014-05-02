@@ -91,7 +91,7 @@ bool sendMessage(int sock, message msg, sockaddr* addr) {
  *          buffer: buffer to write
  *          dim: dimension of the buffer
  */
-void writeFile(char* filename, char* buffer, int dim) {
+void writeFile(const char* filename, unsigned char* buffer, int dim) {
     
     FILE* f = fopen(filename, "w");
     //effective write on the file
@@ -108,18 +108,18 @@ void writeFile(char* filename, char* buffer, int dim) {
  * @return
  *          string: the content of the file
  */
-string readFile(char* filename, int n) {
+unsigned char* readFile(const char* filename, int n) {
     
     int x = n;
     if(x == 0) {
         //TODO read until the end of the file
     }
-    char* buffer = new char[n+1];
+    unsigned char* buffer = new unsigned char[n+1];
     FILE* f = fopen(filename, "r");
     fread(buffer, 1, n, f);
     buffer[n] ='\0';
-    string content = string(buffer);
     fclose(f);
-    return content;
+    
+    return buffer;
     
 }

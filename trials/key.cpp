@@ -1,14 +1,14 @@
 #include "key.h"
-
+#include "util.h"
 /* 
  * this is the constructor of the class key, it aims is to generate the key
  * and then store the key in a file
  */
 Key::Key() {
-    char* key;
-    int i, b;
-    b=key_size;
-    key=new char[key_size];
+    unsigned char* key;
+    int b;
+    b=keySize;
+    key=new unsigned char[b];
     RAND_bytes(key,b);
 #ifdef _DEBUG
     for(i=0; i<b; i++) 
@@ -16,18 +16,20 @@ Key::Key() {
     //printbyte(key[b-1]);
     printf("\n");
 #endif
-    writeFile("key.txt");
+    writeFile("key.txt", key, b);
     delete(key);
 }
 
 /* 
  * Allocate the context for decryption
  */
-void Key::contextDecryptAllocation() {
+void Key::contextDecryptAlloc() {
     
+    int b = keySize;
+    unsigned char* key = readFile("key.txt", b);
     EVP_CIPHER_CTX_init(ctx);
-    EVP_DecryptInit(ctx,EVP_des_ecb(),NULL,NULL);
-    EVP_DecryptInit(ctx,NULL,key,NULL);
+    EVP_DecryptInit(ctx, EVP_des_ecb(), NULL, NULL);
+    EVP_DecryptInit(ctx, NULL, key, NULL);
     EVP_CIPHER_CTX_set_key_length(ctx,keySize);
     
 }
@@ -35,8 +37,10 @@ void Key::contextDecryptAllocation() {
 /*
  * Allocate the context for encryption
  */
-void Key::contextEncryptionAllocation() {
+void Key::contextEncryptAlloc() {
     
+    int b = keySize;
+    unsigned char* key = readFile("key.txt", b);
     EVP_CIPHER_CTX_init(ctx);
     EVP_EncryptInit(ctx,EVP_des_ecb(),NULL,NULL);
     EVP_EncryptInit(ctx,NULL,key,NULL);
@@ -55,10 +59,11 @@ void Key::contextEncryptionAllocation() {
  *          the encrypted buffer
  * NOTE: memory allocation remember to delete
  */
-char* Key::secretEncrypt(char* buffer, int* size) {
+unsigned char* Key::secretEncrypt(const unsigned char* buffer, int* size) {
     
     //temporary buffer used for decryption
-    char* crbuf = new char[*size + EVP_CIPHER_CTX_block_size(ctx)];
+    unsigned char* crbuf = 
+        new unsigned char[*size + EVP_CIPHER_CTX_block_size(ctx)];
     int byteo, pos, byteof, tot;               //output byte  
     EVP_EncryptUpdate(ctx, crbuf, &byteo, buffer, *size);
     pos=byteo;
@@ -79,14 +84,15 @@ char* Key::secretEncrypt(char* buffer, int* size) {
  *          the decrypted buffer
  * NOTE: memory allocated here rmemember to delete
  */
-char* Key:secretDecrypt(char* buffer, int* size) {
+unsigned char* Key::secretDecrypt(const unsigned char* buffer, int* size) {
     
-    char* debuffero = new char* [*size + EVP_CIPHER_CTX_block_size(ctx)];
-    int byteo, byteof, tot;             //output byte
+    unsigned char* debuffero =
+        new unsigned char [(*size) + EVP_CIPHER_CTX_block_size(ctx)];
+    int pos, byteo, byteof, tot;             //output byte
     EVP_DecryptUpdate(ctx, debuffero, &byteo, buffer, *size);
-    pos=byteo;
+    pos = byteo;
     EVP_DecryptFinal(ctx, &debuffero[pos], &byteof);
-    tot=byteo+byteof;
+    tot = byteo+byteof;
     *size=tot;
     return debuffero;
     

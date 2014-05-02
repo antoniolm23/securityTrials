@@ -17,13 +17,13 @@ class Key{
     EVP_CIPHER_CTX* ctx;
     
     //allocation and preparation of the context
-    void contexDecryptAlloc();
+    void contextDecryptAlloc();
     void contextEncryptAlloc();
 public:
     //constructor (generates the key)
     Key();
     
     //encrypt and decrypt by means of secret key
-    char* secretDecrypt(char*, int*);
-    char* secretEncrypt(char*, int*);
-}
+    unsigned char* secretDecrypt(const unsigned char*, int*);
+    unsigned char* secretEncrypt(const unsigned char*, int*);
+};

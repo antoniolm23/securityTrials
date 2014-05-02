@@ -10,7 +10,6 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <stdio.h>
-#include <fstream>
 
 #define TODOLOGIN -1
 #define DONELOGIN 0 
@@ -43,5 +42,5 @@ message receiveMessage(int, sockaddr* = 0);
 bool sendMessage(int, message, sockaddr* = 0);
 
 //file management
-void writeFile(char*, char*, int);
-string readFile(char*);
+void writeFile(const char*, unsigned char*, int);
+unsigned char* readFile(const char*, int);
