@@ -1,4 +1,4 @@
-#include "everything.h"
+#include "util.h"
 
 class Client{
     
@@ -14,13 +14,13 @@ class Client{
     fd_set master, read_fds;
     
     //part related to the server
-    sockaddr_in servAddr;
+    sockaddr servAddr;
     int servSock;
     
 public:
     
     //constructor
-    Client(int, char*, char* );
+    Client(int, const char*, const char* );
     
     //send the message to the server
     bool sendServMsg(message);
@@ -33,7 +33,8 @@ public:
     //receive events from the outside world 
     void receiveEvents();
     
-    void parseKeyCommand();
+    void parseKeyCommand(char);
+    void displayHelp();
     
     //destroyer
     ~Client();

@@ -1,5 +1,5 @@
 #include "server.h"
-#include "../../../../../Triennale/III anno/Reti Informatiche/progetto/chat_client.h"
+#include "key.h"
 
 /* 
  * Constructor of the class server
@@ -7,7 +7,7 @@
  *          ip address of the server
  *          port on which the server accepts connections 
  */
-Server::Server(char* host, int port) {
+Server::Server(const char* host, int port) {
     
     //creates the socket
     servSock = socket(AF_INET, SOCK_STREAM, 0);
@@ -43,9 +43,9 @@ Server::Server(char* host, int port) {
     fdmax=servSock;
 
     //initialize the string
-    name=new string(host);
+    name = string(host);
     
-    clientList = new List<Client>();
+    clientList = list<clientInfo>();
     
     cout<<"server connected at port "<<port<<" host "<<host<<endl;
     
@@ -59,17 +59,24 @@ Server::Server(char* host, int port) {
  * @returns
  *          Client if present otherwise 0
  */
-Client Server::searchListSocket(int s) {
+clientInfo Server::searchListSocket(int sock) {
     
-    Client p = clientList.begin();
-    Client q = clientList.end();
+    list<clientInfo>::iterator p = clientList.begin();
+    list<clientInfo>::iterator q = clientList.end();
+    clientInfo t;
     
-    for(p; p!=q; p++) {
-        if(p.clientSock == s) 
-            return p;
+    for(;p!=q; p++) {
+
+        if(p->clientSock == sock) {
+            t.Name = p->Name;
+            t.clientAddr = p->clientAddr;
+            t.clientSock = p->clientSock;
+            t.protoStep = p->protoStep;
+            return t;
+        }
     }
     
-    return 0;
+    return t;
     
 }
 
@@ -80,10 +87,9 @@ Client Server::searchListSocket(int s) {
  * @returns
  *          the message received
  */
-message RecvClientMsg(int sock) {
+message Server::RecvClientMsg(int sock) {
     
-    Client cl = searchListSocket(sock);
-    return receiveMessage(sock, cl.clientAddr);
+    return receiveMessage(sock);
     
 }
 
@@ -95,10 +101,9 @@ message RecvClientMsg(int sock) {
  * @returns
  *          how the send went 
  */
-bool SendClientMsg(int sock, message msg) {
+bool Server::SendClientMsg(int sock, message msg) {
     
-    Client cl = searchListSocket(sock);
-    return sendMessage(sock, msg, cl.clientAddr);
+    return sendMessage(sock, msg);
 }
 
 /* 
@@ -108,23 +113,23 @@ bool SendClientMsg(int sock, message msg) {
  */
 void Server::acceptConnection() {
     
-    Client newClient;
+    clientInfo arrivedClient;
     int len;
     
     //allocate the socket for a new client
-    newClient.clientSock = accept(servSock, (sockaddr*) 
-        &newClient.clientAddr, (socklen_t*)&len);
+    arrivedClient.clientSock = accept(servSock, (sockaddr*) 
+        &arrivedClient.clientAddr, (socklen_t*)&len);
     
-    /* 
-     * PART RELATED TO THE INSERTION OF CLIENT NAME and PASSWORD
-     */
-    message = receiveMessage(newClient.clientSock, 
-        &newClient.clientAddr);
+    if(arrivedClient.clientSock > servSock)
+        fdmax = arrivedClient.clientSock;
     
-    
+    FD_SET(arrivedClient.clientSock, &master);
+    arrivedClient.Name = string("\0");
+    //this means that the login has to be done
+    arrivedClient.protoStep = TODOLOGIN;
     
     //insert the client in the list (last action to do)
-    clientList.push_back(newClient);
+    clientList.push_back(arrivedClient);
     
 }
 
@@ -165,7 +170,8 @@ void Server::parseKeyCommand(){
         case 'k':
             changeKey();
             break;
-        default;
+        default:
+            break;
     }
     
 }
@@ -176,8 +182,50 @@ void Server::parseKeyCommand(){
  * length is equal to the one of the public key then this is the 
  * beginning of the protocol, otherwise check if the client has 
  * reached some point of the protocol 
+ * @params:
+ *          clientInfo structure to modify
+ *          message received
  */
-void Server::parseReceivedMessage(Client cl, message msg) {
+void Server::parseReceivedMessage(clientInfo cl, message msg) {
+    
+    cout<<msg.text<<endl;
+    
+    if(cl.protoStep == TODOLOGIN) {
+        //if the client has issued a login command than the server fills it 
+        if(strncmp("login ", msg.text, 6) == 0) {
+            
+            //the client sends its name along with the command
+            //jumps after the command
+            msg.text += 6; 
+            msg.len -= 6;
+            cl.Name = string(msg.text);
+            
+            list<clientInfo>::iterator p = clientList.begin();
+            list<clientInfo>::iterator q = clientList.end();
+            
+            for(; p!=q; p++) {
+                if(p->clientSock == cl.clientSock) {
+                    p->Name = cl.Name;
+                    p->protoStep = DONELOGIN;
+                }
+            }
+            
+        }
+    }
+    
+    else {
+        if(strncmp("fireq ", msg.text, 6) == 0) {
+            
+            //the client sends the filename after the command
+            //jumps after the command
+            msg.text += 6; 
+            msg.len -= 6;
+            
+            string namefile = string(msg.text);
+            cout<<msg.text<<endl;
+        }
+    }
+    
 }
 
 /* TODO & FIXME
@@ -188,11 +236,11 @@ void Server::receiveEvents() {
     //infinite loop to accept events
     while(1) {
         
+        //cout<<"hello"<<endl;
+        
         read_fds=master;
         if(select(fdmax+1, &read_fds, NULL, NULL, NULL)==-1) {
-#ifdef _DEBUG
             cerr<<" error in the select"<<name<<" \n";
-#endif
             exit(1);
         }
         
@@ -201,24 +249,28 @@ void Server::receiveEvents() {
          * checks if the file descriptor has been set
          */ 
         for(int i=0; i<=fdmax; i++) {
-#ifdef _DEBUG
-            cerr<<"for cycle "<<i<<endl;
-#endif
+            
+            //cout<<"for cycle "<<i<<endl;
+            
             //this means keyboard event
             if(FD_ISSET(0, &read_fds)) 
                 parseKeyCommand();
             if(FD_ISSET(i, &read_fds)) {
                 
                 //checks if there's a new connections
-                if(i==servSock) 
+                if(i == servSock) {
+                    //cout<<"new connection"<<endl;
                     acceptConnection();
+                }
                 
                 //this means a receiving message
                 else {
-                    Client cl = searchListSocket(i);
-                    message msg = receiveMessage(i, &cl.clientAddr);
+                    cout<<"new message"<<endl;
+                    clientInfo cl = searchListSocket(i);
+                    message msg = receiveMessage(i);
                     parseReceivedMessage(cl, msg);
                 }
+            break;
             }
         }
     }
@@ -228,7 +280,6 @@ void Server::receiveEvents() {
  * Destroyer of the server
  */
 Server::~Server(){
-    free(name);
-    ~clientList();
+    clientList.clear();
 }
 

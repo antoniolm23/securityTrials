@@ -1,5 +1,5 @@
 #include "client.h"
-
+#include "key.h"
 /* 
  * Client constructor
  * @params:
@@ -7,10 +7,10 @@
  *          name: name of the client
  *          server: name of the server
  */
-Client::Client(int port, char* name, char* server){
+Client::Client(int port, const char* n, const char* server){
     
     //name of the client
-    this.name = new string(name);
+    name = string(n);
     
     //socket of the client
     cliSock = socket(AF_INET, SOCK_STREAM, 0);
@@ -19,8 +19,9 @@ Client::Client(int port, char* name, char* server){
     bzero(&cliAddr, sizeof(cliAddr));
     cliAddr.sin_family=AF_INET;
     cliAddr.sin_port=htons(port);
-    hostent* he;
+    struct hostent* he;
     if(inet_aton(server, &cliAddr.sin_addr)!=0) {
+        cerr<<"client created\n";
         he=gethostbyname(server);
         if(!he) {
             cerr<<"Can't solve server name"<<server<<" \n";
@@ -29,11 +30,11 @@ Client::Client(int port, char* name, char* server){
         cliAddr.sin_addr =* (struct in_addr*) he->h_addr;
     }
     
-    //preparing the file descriptors
-    FD_ZERO(&master);
-    FD_ZERO(&read_fds);
-    FD_SET(servSock, &master);
-    fdmax=cliSock;
+      //connect with the socket of the server
+  if(connect(cliSock, (struct sockaddr*) &cliAddr, sizeof(cliAddr) )<0) {
+    cerr<<"Can't connect socket tcp\n";
+    exit(-1);
+  }
     
 }
 
@@ -44,7 +45,7 @@ Client::Client(int port, char* name, char* server){
  */
 message Client::recvServMsg() {
     
-    return receiveMessage(servSock, servAddr);
+    return receiveMessage(servSock, &servAddr);
     
 }
 
@@ -57,11 +58,22 @@ message Client::recvServMsg() {
  */
 bool Client::sendServMsg(message msg){
     
-    return sendMessage(servSock, msg, servAddr);
+    return sendMessage(cliSock, msg, &servAddr);
     
 }
 
-
+void Client::displayHelp() {
+    cout<<"h -> shows the help!\n"
+    <<"s -> insert a message to send to the server\n"
+    <<"k -> change the couple of private and public key"
+    <<"c -> insert a command"
+    <<"f -> request a file"
+    <<"l -> the client does a login with its name and password"<<endl;
+    /*
+     * FIXME: at first the name and passowrd are sent in the clear, 
+     * modify it with the usage of asymmetric encryption.
+     */ 
+}
 
 /* 
  * Parse the command received from the keyboard
@@ -70,28 +82,84 @@ bool Client::sendServMsg(message msg){
  * NOTE Possible commands are:
  * h -> help displayHelp
  * s -> new message to be sent to the server
- * k -> change the couple of public and private key  
+ * k -> change the couple of public and private key
+ * c -> insert a command  
  */
-void Client::parseKeyCommand() {
+/* 
+ * NOTE: commands to be given to the server are 5 bytes plus a space,
+ * possibilities are: 
+ * fireq: requests a file from the server
+ * login: does a login to the server
+ * encry: encrypt a message
+ * mexit: quit from the server
+ */
+void Client::parseKeyCommand(char k) {
     
-    char k;
-    char* text;
-    cin<<k;
+    char text[100];
+    //command plus the text
+    char* cmdText;
+    int len;
+    bool encryptMsg = false;
+    bool messageToSend = false;
+    const char* login = "login ";
+    const char* fireq = "fireq ";
+    const char* enc = "encry ";
+    string command; 
     switch(k) {
         case 'h':
             displayHelp();
             break;
         //this means a new message
         case 's':
-            cin<<text;
-            int len = strlen(text);
-            message* msg = new message;
-            msg->len = len;
-            msg->text = text;
-            sendServMsg(msg);
+            cin>>text;
+            len = strlen(text);
             break;
+        case 'f':
+            messageToSend = true;
+            cin>>text;
+            //request a file
+            command = string(fireq);
+            break;
+        case 'l':
+            messageToSend = true;
+            cin>>text;
+            command = string(login);
+            break;
+        case 'e':
+            messageToSend = encryptMsg = true;
+            cin>>text;
+            command = string(enc);
+            break;
+        default:
+        break;
         
     }
+    
+    if(!messageToSend)
+        return;
+    
+    /*
+     * prepare the message to send putting at the beginning the command 
+     * and at the end the message put by the client
+     */
+    len = strlen(text) + 6;
+    cmdText = new char[len + 1];
+    for(int i = 0; i<6; i++)
+        cmdText[i] = command[i];
+    strcpy(&cmdText[6], text);
+    
+    if(encryptMsg == true) {
+        Key k = Key();
+    }
+    
+    cout<<"cmdText: "<<cmdText<<endl;
+    message* msg = new message;
+    msg->len = len;
+    msg->text = new char[len+1];
+    strcpy(msg->text, text);
+    msg->text[len] = '\0';
+    cout<<text<<" "<<len<<endl;
+    sendServMsg(*msg);
     
 }
 
@@ -100,28 +168,42 @@ void Client::parseKeyCommand() {
  */
 void Client::receiveEvents() {
     
+    cerr<<"receive events\n";
+    fdmax = cliSock;
     //infinite loop to accept events
     while(1) {
         
-        read_fds=master;
-        if(select(fdmax+1, &read_fds, NULL, NULL, NULL)==-1) {
-#ifdef _DEBUG
-            cerr<<" error in the select"<<name<<" \n";
-#endif
+        FD_SET(0, &read_fds);
+        FD_SET(cliSock, &read_fds);
+        
+        int sel = select(fdmax+1, &read_fds, NULL, NULL, NULL);
+        if( sel <= 0) {
+            cerr<<" error in the select "<<name<<" \n";
             exit(1);
+        }
+        
+        cerr<<"receive events"<<endl;
+        
+        //this means keyboard event
+        if(FD_ISSET(0, &read_fds)) {
+            cout<<"key pressed"<<endl;
+            char k;
+            cin>>k;
+            parseKeyCommand(k);
+        }
+        
+        else {
+            cout<<"hello"<<endl;
         }
         
         /* 
          * roll all the file descriptors and
          * checks if the file descriptor has been set
          */ 
-        for(int i=0; i<=fdmax; i++) {
-#ifdef _DEBUG
+        for(int i=1; i<=fdmax; i++) {
+            
             cerr<<"for cycle "<<i<<endl;
-#endif
-            //this means keyboard event
-            if(FD_ISSET(0, &read_fds)) 
-                parseKeyCommand();
+            
             if(FD_ISSET(i, &read_fds)) {
                 
                 //receive the message from the server and parse it
@@ -137,9 +219,7 @@ void Client::receiveEvents() {
     }
 }
 
+Client::~Client()
+{
 
-
-
-
-
-
+}

@@ -2,8 +2,7 @@
  *This is the server header file, the server is written in C++ and works 
  *on IPv4 only  
 */
-
-#include "everything.h"
+#include "util.h"
 
 class Server {
     
@@ -19,16 +18,16 @@ class Server {
     fd_set master, read_fds;
     string name;
     
-    list<Client> clientList;
+    list<clientInfo> clientList;
     
     //PRIVATE FUNCTIONS
     void parseKeyCommand();
     void changeKey();
     void displayHelp();
-    Client searchListSocket(int);
+    clientInfo searchListSocket(int);
 public:
     
-    Server(char*, int);
+    Server(const char*, int);
     
     //accept a connection by a client
     void acceptConnection();
@@ -44,7 +43,7 @@ public:
     bool SendClientMsg(int, message);
     
     /*parses the received message in order to take the right decision*/
-    void parseReceivedMessage(Client, message);
+    void parseReceivedMessage(clientInfo, message);
     
     //destroyer
     ~Server();
