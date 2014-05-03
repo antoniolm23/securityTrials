@@ -30,11 +30,18 @@ Client::Client(int port, const char* n, const char* server){
         cliAddr.sin_addr =* (struct in_addr*) he->h_addr;
     }
     
-      //connect with the socket of the server
-  if(connect(cliSock, (struct sockaddr*) &cliAddr, sizeof(cliAddr) )<0) {
-    cerr<<"Can't connect socket tcp\n";
-    exit(-1);
-  }
+    //connect with the socket of the server
+    if(connect(cliSock, (struct sockaddr*) &cliAddr, sizeof(cliAddr) )<0) {
+        cerr<<"Can't connect socket tcp\n";
+        exit(-1);
+    }
+    
+    /* 
+     * generate a secretKey, the key has to be generated just 
+     * once in the whole program
+    */
+    Key k = Key();
+    k.keyGenerator();
     
 }
 
@@ -97,7 +104,7 @@ void Client::parseKeyCommand(char k) {
     
     char text[100];
     //command plus the text
-    char* cmdText;
+    unsigned char* cmdText;
     int len;
     bool encryptMsg = false;
     bool messageToSend = false;
@@ -130,6 +137,8 @@ void Client::parseKeyCommand(char k) {
             cin>>text;
             command = string(enc);
             break;
+        case 'q':
+            exit(1);
         default:
         break;
         
@@ -143,23 +152,40 @@ void Client::parseKeyCommand(char k) {
      * and at the end the message put by the client
      */
     len = strlen(text) + 6;
-    cmdText = new char[len + 1];
+    cmdText = new unsigned char[len + 1];
     for(int i = 0; i<6; i++)
         cmdText[i] = command[i];
-    strcpy(&cmdText[6], text);
+    memcpy(&cmdText[6], text, (len - 6));
     
+    
+    //check if we have to encrypt the message and do it if requested
     if(encryptMsg == true) {
+        unsigned char* tmp = new unsigned char[len]; 
+        memcpy(tmp, cmdText, len);
+        delete(cmdText);
         Key k = Key();
+        cmdText = k.secretEncrypt(tmp, &len);
+        //cout<<"successfully encrypted"<<endl;
+        printByte((uint8_t*)cmdText, len);
+        delete(tmp);
+        //Key k1 = Key();
+        //tmp = k1.secretDecrypt(cmdText, &len);
+        //cout<<"decrypted: "<<tmp<<endl;
     }
     
-    cout<<"cmdText: "<<cmdText<<endl;
+    //cout<<"cmdText: "<<cmdText<<endl;
     message* msg = new message;
-    msg->len = len;
+    msg->len = len + 1;
     msg->text = new char[len+1];
-    strcpy(msg->text, text);
+    memcpy(msg->text, cmdText, len);
     msg->text[len] = '\0';
-    cout<<text<<" "<<len<<endl;
+    cout<<"second print ";
+    cout<<msg->text<<endl;
     sendServMsg(*msg);
+    
+    delete(msg->text);
+    delete(msg);
+    delete(cmdText);
     
 }
 

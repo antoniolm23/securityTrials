@@ -44,3 +44,6 @@ bool sendMessage(int, message, sockaddr* = 0);
 //file management
 void writeFile(const char*, unsigned char*, int);
 unsigned char* readFile(const char*, int);
+
+//printbyte
+void printByte(unsigned char*, int);

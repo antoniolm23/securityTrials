@@ -170,6 +170,8 @@ void Server::parseKeyCommand(){
         case 'k':
             changeKey();
             break;
+        case 'q':
+            exit(1);
         default:
             break;
     }
@@ -188,7 +190,7 @@ void Server::parseKeyCommand(){
  */
 void Server::parseReceivedMessage(clientInfo cl, message msg) {
     
-    cout<<msg.text<<endl;
+    //cout<<msg.text<<endl;
     
     if(cl.protoStep == TODOLOGIN) {
         //if the client has issued a login command than the server fills it 
@@ -223,6 +225,17 @@ void Server::parseReceivedMessage(clientInfo cl, message msg) {
             
             string namefile = string(msg.text);
             cout<<msg.text<<endl;
+        }
+        
+        //this means we have to decrypt a message
+        else {
+            Key k = Key();
+            int len = msg.len;
+            const unsigned char* buf = (const unsigned char*)msg.text;
+            //printByte((unsigned char*)buf, len);
+            unsigned char* debuf = k.secretDecrypt(buf, &len);
+            cout<<debuf<<endl;
+            delete(debuf);
         }
     }
     

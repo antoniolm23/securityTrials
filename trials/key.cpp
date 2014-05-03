@@ -4,7 +4,7 @@
  * this is the constructor of the class key, it aims is to generate the key
  * and then store the key in a file
  */
-Key::Key() {
+void Key::keyGenerator() {
     unsigned char* key;
     int b;
     b=keySize;
@@ -26,11 +26,13 @@ Key::Key() {
 void Key::contextDecryptAlloc() {
     
     int b = keySize;
+    ctx=new EVP_CIPHER_CTX;
     unsigned char* key = readFile("key.txt", b);
     EVP_CIPHER_CTX_init(ctx);
     EVP_DecryptInit(ctx, EVP_des_ecb(), NULL, NULL);
     EVP_DecryptInit(ctx, NULL, key, NULL);
     EVP_CIPHER_CTX_set_key_length(ctx,keySize);
+    delete(key);
     
 }
 
@@ -40,11 +42,13 @@ void Key::contextDecryptAlloc() {
 void Key::contextEncryptAlloc() {
     
     int b = keySize;
+    ctx=new EVP_CIPHER_CTX;
     unsigned char* key = readFile("key.txt", b);
     EVP_CIPHER_CTX_init(ctx);
     EVP_EncryptInit(ctx,EVP_des_ecb(),NULL,NULL);
     EVP_EncryptInit(ctx,NULL,key,NULL);
     EVP_CIPHER_CTX_set_key_length(ctx,keySize);
+    delete(key);
     
 }
 
@@ -61,6 +65,7 @@ void Key::contextEncryptAlloc() {
  */
 unsigned char* Key::secretEncrypt(const unsigned char* buffer, int* size) {
     
+    contextEncryptAlloc();
     //temporary buffer used for decryption
     unsigned char* crbuf = 
         new unsigned char[*size + EVP_CIPHER_CTX_block_size(ctx)];
@@ -70,6 +75,7 @@ unsigned char* Key::secretEncrypt(const unsigned char* buffer, int* size) {
     EVP_EncryptFinal(ctx, &crbuf[pos], &byteof);
     tot=byteo+byteof;
     *size=tot;
+    delete (ctx);
     return crbuf;
 }
 
@@ -86,6 +92,7 @@ unsigned char* Key::secretEncrypt(const unsigned char* buffer, int* size) {
  */
 unsigned char* Key::secretDecrypt(const unsigned char* buffer, int* size) {
     
+    contextDecryptAlloc();
     unsigned char* debuffero =
         new unsigned char [(*size) + EVP_CIPHER_CTX_block_size(ctx)];
     int pos, byteo, byteof, tot;             //output byte
@@ -94,6 +101,7 @@ unsigned char* Key::secretDecrypt(const unsigned char* buffer, int* size) {
     EVP_DecryptFinal(ctx, &debuffero[pos], &byteof);
     tot = byteo+byteof;
     *size=tot;
+    delete (ctx);
     return debuffero;
     
 }

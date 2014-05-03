@@ -123,3 +123,15 @@ unsigned char* readFile(const char* filename, int n) {
     return buffer;
     
 }
+
+/* 
+ * Print the string byte by byte
+ * @params:
+ *          tmp: the buffer to print
+ *          len: the length of the string
+ */
+void printByte(unsigned char* tmp, int len) {
+    for(int i=0; i<len; i++)
+        fprintf(stdout, "%i ", tmp[i]);
+    cout<<endl;
+}

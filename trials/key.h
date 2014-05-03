@@ -13,7 +13,7 @@
  */
 class Key{
     //file in which there's the key
-    string secretKey;
+    //string secretKey;
     EVP_CIPHER_CTX* ctx;
     
     //allocation and preparation of the context
@@ -21,7 +21,9 @@ class Key{
     void contextEncryptAlloc();
 public:
     //constructor (generates the key)
-    Key();
+    Key() {};
+    
+    void keyGenerator();
     
     //encrypt and decrypt by means of secret key
     unsigned char* secretDecrypt(const unsigned char*, int*);
