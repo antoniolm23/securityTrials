@@ -36,6 +36,8 @@ Client::Client(int port, const char* n, const char* server){
         exit(-1);
     }
     
+    waitFile = false;
+    
     /* 
      * generate a secretKey, the key has to be generated just 
      * once in the whole program
@@ -50,9 +52,9 @@ Client::Client(int port, const char* n, const char* server){
  * @return 
  *         the message received
  */
-message Client::recvServMsg() {
+message Client::recvServMsg(int sock) {
     
-    return receiveMessage(servSock, &servAddr);
+    return receiveMessage(sock, &servAddr);
     
 }
 
@@ -108,10 +110,13 @@ void Client::parseKeyCommand(char k) {
     int len;
     bool encryptMsg = false;
     bool messageToSend = false;
+    
     const char* login = "login ";
     const char* fireq = "fireq ";
     const char* enc = "encry ";
     string command; 
+    
+    //check the command typed by the client
     switch(k) {
         case 'h':
             displayHelp();
@@ -126,6 +131,8 @@ void Client::parseKeyCommand(char k) {
             cin>>text;
             //request a file
             command = string(fireq);
+            fileName = string(text);
+            waitFile = true;
             break;
         case 'l':
             messageToSend = true;
@@ -183,11 +190,42 @@ void Client::parseKeyCommand(char k) {
     cout<<msg->text<<endl;
     sendServMsg(*msg);
     
+    //free the virtual allocated memory
     delete(msg->text);
     delete(msg);
     delete(cmdText);
     
 }
+
+/* 
+ * Parse the message received by the server, in this case the waitReplay
+ * to see if the client can do an assumption on the received message
+ * @params:
+ *          msg: the received message
+ */
+void Client::parseRecMessage(message msg) {
+    
+    int size;
+    unsigned char* buffer;
+    
+    //first check the message
+    if(strcmp (msg.text, "wrong file") == 0) {
+        cerr<<"wrong file requested"<<endl;
+        return;
+    }
+    
+    //wait for a file and decrypts it
+    if(waitFile == true) {
+        Key k = Key(); 
+        size = msg.len;
+        buffer = k.secretDecrypt((const unsigned char*)msg.text, &size);
+        writeFile("out.pdf", buffer, size);
+        delete(buffer);
+        delete(msg.text);
+    }
+    
+}
+
 
 /* 
  * Receive events from the outside world, server socket or keyboard
@@ -208,7 +246,7 @@ void Client::receiveEvents() {
             exit(1);
         }
         
-        cerr<<"receive events"<<endl;
+        //cerr<<"receive events"<<endl;
         
         //this means keyboard event
         if(FD_ISSET(0, &read_fds)) {
@@ -218,25 +256,21 @@ void Client::receiveEvents() {
             parseKeyCommand(k);
         }
         
-        else {
-            cout<<"hello"<<endl;
-        }
-        
         /* 
          * roll all the file descriptors and
          * checks if the file descriptor has been set
          */ 
         for(int i=1; i<=fdmax; i++) {
             
-            cerr<<"for cycle "<<i<<endl;
+            //cerr<<"for cycle "<<i<<endl;
             
             if(FD_ISSET(i, &read_fds)) {
                 
                 //receive the message from the server and parse it
-                if(i == servSock) {
+                if(i == cliSock) {
                     
-                    message msg = recvServMsg();
-                    //parseRecMessage(msg);
+                    message msg = recvServMsg(i);
+                    parseRecMessage(msg);
                     
                 }
                 

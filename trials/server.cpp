@@ -218,13 +218,44 @@ void Server::parseReceivedMessage(clientInfo cl, message msg) {
     else {
         if(strncmp("fireq ", msg.text, 6) == 0) {
             
+            const char* error = "wrong file";
+            
             //the client sends the filename after the command
             //jumps after the command
-            msg.text += 6; 
             msg.len -= 6;
             
-            string namefile = string(msg.text);
+            string namefile = string(&msg.text[6]);
             cout<<msg.text<<endl;
+            int size = 0;
+            //read the content of a file
+            char* buffer = readFile(namefile.c_str(), &size);
+            
+            //if a buffer is empty then send the client an error message
+            if(buffer == NULL) {
+                message msg1;
+                int n = strlen(error);
+                msg1.text = new char[n+1];
+                strncpy(msg.text, error, n);
+                msg1.text[n] = '\0';
+                msg1.len = n;
+                SendClientMsg(cl.clientSock, msg1);
+                delete(msg1.text);
+            }
+            
+            //otherwise encrypt the buffer and send it to the client
+            else {
+                Key k = Key();
+                message msg1;
+                msg1.text = 
+                    (char*)k.secretEncrypt((unsigned char*)buffer, &size);
+                msg1.len = size;
+                SendClientMsg(cl.clientSock, msg1);
+                delete(buffer);
+                delete(msg1.text);
+            }
+            
+            delete(msg.text);
+            
         }
         
         //this means we have to decrypt a message

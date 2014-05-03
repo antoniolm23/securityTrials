@@ -108,7 +108,7 @@ void writeFile(const char* filename, unsigned char* buffer, int dim) {
  * @return
  *          string: the content of the file
  */
-unsigned char* readFile(const char* filename, int n) {
+unsigned char* readKeyFile(const char* filename, int n) {
     
     int x = n;
     if(x == 0) {
@@ -134,4 +134,34 @@ void printByte(unsigned char* tmp, int len) {
     for(int i=0; i<len; i++)
         fprintf(stdout, "%i ", tmp[i]);
     cout<<endl;
+}
+
+/* 
+ * Read a whole file
+ * @parmas:
+ *          namefile: the name of the file
+ *          size: OUT parameter used to return the dimension of the buffer
+ * @returns:
+ *          buffer that contains the file 
+ */
+char* readFile(const char* name, int* size) {
+    
+    int fsize;
+    char* fbuffer;
+    //open the file a first time to check the length of it
+    FILE* fp=fopen(name, "r");
+    if(fp == NULL)
+        return NULL;
+    fseek(fp, 0, SEEK_END);           //reach the end of it
+    fsize = ftell(fp);
+    fclose(fp);
+    
+    //open the file to read it and put its content into a buffer
+    fp=fopen(name, "r");
+    fbuffer=new char[fsize];
+    //copy of the buffer
+    fread(fbuffer, 1, fsize, fp);
+    *size = fsize;
+    return fbuffer;
+    
 }

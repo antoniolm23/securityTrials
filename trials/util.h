@@ -41,9 +41,12 @@ struct message{
 message receiveMessage(int, sockaddr* = 0);
 bool sendMessage(int, message, sockaddr* = 0);
 
+//file management for the key
+unsigned char* readKeyFile(const char*, int);
+
 //file management
 void writeFile(const char*, unsigned char*, int);
-unsigned char* readFile(const char*, int);
+char* readFile(const char*, int*);
 
 //printbyte
 void printByte(unsigned char*, int);

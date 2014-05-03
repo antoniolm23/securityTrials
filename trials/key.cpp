@@ -27,7 +27,7 @@ void Key::contextDecryptAlloc() {
     
     int b = keySize;
     ctx=new EVP_CIPHER_CTX;
-    unsigned char* key = readFile("key.txt", b);
+    unsigned char* key = readKeyFile("key.txt", b);
     EVP_CIPHER_CTX_init(ctx);
     EVP_DecryptInit(ctx, EVP_des_ecb(), NULL, NULL);
     EVP_DecryptInit(ctx, NULL, key, NULL);
@@ -43,7 +43,7 @@ void Key::contextEncryptAlloc() {
     
     int b = keySize;
     ctx=new EVP_CIPHER_CTX;
-    unsigned char* key = readFile("key.txt", b);
+    unsigned char* key = readKeyFile("key.txt", b);
     EVP_CIPHER_CTX_init(ctx);
     EVP_EncryptInit(ctx,EVP_des_ecb(),NULL,NULL);
     EVP_EncryptInit(ctx,NULL,key,NULL);

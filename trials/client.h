@@ -9,13 +9,18 @@ class Client{
     //name of the client
     string name;
     
+    //eventually name of the file
+    string fileName;
+    
     //file descriptors to be used in the select
     int fdmax;
     fd_set master, read_fds;
     
+    //tells the client wether if he has to wait a replay or not
+    bool waitFile;
+    
     //part related to the server
     sockaddr servAddr;
-    int servSock;
     
 public:
     
@@ -25,13 +30,15 @@ public:
     //send the message to the server
     bool sendServMsg(message);
     //receive message from the server
-    message recvServMsg();
+    message recvServMsg(int);
     
     //securityProtocol
     bool securityProtocol();
     
     //receive events from the outside world 
     void receiveEvents();
+    
+    void parseRecMessage(message);
     
     void parseKeyCommand(char);
     void displayHelp();
